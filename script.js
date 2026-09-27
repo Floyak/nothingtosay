@@ -30,9 +30,42 @@ document.querySelectorAll('[data-nav-item]').forEach((item) => {
   if (!dropdown) return;
 
   trigger.addEventListener('mouseenter', () => {
-    document.querySelectorAll('[data-dropdown].is-open').forEach((d) => d.classList.remove('is-open'));
+    const wasActive = nav.classList.contains('nav-active');
+    const allDropdowns = document.querySelectorAll('[data-dropdown]');
+
+    if (wasActive) {
+      allDropdowns.forEach((d) => d.classList.add('instant'));
+    }
+
+    allDropdowns.forEach((d) => {
+      if (d !== dropdown) d.classList.remove('is-open');
+    });
+
+    const inner = dropdown.querySelector('.dropdown-inner');
+    if (inner) {
+      const rect = trigger.getBoundingClientRect();
+      const buttonCenter = rect.left + rect.width / 2;
+      const centerCol = inner.querySelector('[data-center-under-trigger]');
+
+      if (centerCol) {
+        const currentPadding = parseFloat(inner.style.paddingLeft) || 0;
+        const colRect = centerCol.getBoundingClientRect();
+        const colCenter = colRect.left + colRect.width / 2;
+        const delta = buttonCenter - colCenter;
+        inner.style.paddingLeft = (currentPadding + delta) + 'px';
+      } else {
+        inner.style.paddingLeft = rect.left + 'px';
+      }
+    }
+
     dropdown.classList.add('is-open');
     nav.classList.add('nav-active');
+
+    if (wasActive) {
+      requestAnimationFrame(() => {
+        allDropdowns.forEach((d) => d.classList.remove('instant'));
+      });
+    }
   });
 
   dropdown.addEventListener('mouseleave', (e) => {
@@ -40,7 +73,16 @@ document.querySelectorAll('[data-nav-item]').forEach((item) => {
     const leftThroughBottom = e.clientY >= rect.bottom - 1;
     if (leftThroughBottom) {
       dropdown.classList.remove('is-open');
-      nav.classList.remove('nav-active');
+
+      dropdown.addEventListener('transitionend', function handler(ev) {
+        if (ev.propertyName !== 'max-height') return;
+        dropdown.removeEventListener('transitionend', handler);
+
+        const anyOpen = document.querySelector('[data-dropdown].is-open');
+        if (!anyOpen) {
+          nav.classList.remove('nav-active');
+        }
+      });
     }
   });
 });
